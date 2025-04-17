@@ -1,0 +1,92 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Box, CircularProgress, Typography, Alert, Button } from '@mui/material';
+import { supabase } from '@/lib/supabase/client';
+
+export default function AuthCallbackPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [error, setError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    // Check if we're coming from the OAuth provider (has code parameter)
+    const code = searchParams.get('code');
+    
+    if (code) {
+      // The route handler will process the code and redirect
+      console.log('Code parameter detected, waiting for processing...');
+      // Wait for the route handler to process
+      return;
+    }
+    
+    // No code parameter means we're directly accessing the callback page
+    // This happens after the route handler has processed the code
+    const checkSession = async () => {
+      try {
+        // Check if we have a session
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        console.log('Session check in callback page:', 
+          session ? `Authenticated as ${session.user.email}` : 'No session');
+        
+        // Wait a short delay to ensure session is established
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        if (session) {
+          // Redirect to dashboard if we have a session
+          router.push('/dashboard');
+        } else {
+          // Something went wrong, redirect to login
+          setError('Authentication failed. Please try again.');
+          setTimeout(() => router.push('/login'), 2000);
+        }
+      } catch (err) {
+        console.error('Error checking session:', err);
+        setError('An error occurred during authentication.');
+        setTimeout(() => router.push('/login'), 2000);
+      }
+    };
+    
+    checkSession();
+  }, [router, searchParams]);
+
+  return (
+    <Box 
+      sx={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '100vh',
+        p: 3
+      }}
+    >
+      {error ? (
+        <>
+          <Alert severity="error" sx={{ mb: 3, width: '100%', maxWidth: 500 }}>
+            {error}
+          </Alert>
+          <Button 
+            variant="contained" 
+            onClick={() => router.push('/login')}
+            sx={{ mt: 2 }}
+          >
+            Return to Login
+          </Button>
+        </>
+      ) : (
+        <>
+          <CircularProgress size={60} />
+          <Typography variant="h6" sx={{ mt: 4 }}>
+            Completing authentication...
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2, textAlign: 'center' }}>
+            Please wait while we finalize your sign-in
+          </Typography>
+        </>
+      )}
+    </Box>
+  );
+}
