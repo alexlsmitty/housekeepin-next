@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { Task, TaskFormValues } from '@/types/database';
 import {
   Box,
   Button,
@@ -23,17 +24,24 @@ import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { supabase } from '@/lib/supabase/client';
 import { useHousehold } from '@/lib/hooks/useHousehold';
 
-export default function TaskForm({ open, onClose, task }) {
+interface TaskFormProps {
+  open: boolean;
+  onClose: (shouldRefresh: boolean) => void;
+  task: Task | null;
+}
+
+export default function TaskForm({ open, onClose, task }: TaskFormProps) {
   const { household, members } = useHousehold();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<TaskFormValues & { due_date: Date | null; }>({
     title: '',
     description: '',
     due_date: null,
     completed: false,
-    assigned_to: ''
+    assigned_to: '',
+    household_id: ''
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   
   // Populate form with task data if editing
   useEffect(() => {
@@ -43,36 +51,39 @@ export default function TaskForm({ open, onClose, task }) {
         description: task.description || '',
         due_date: task.due_date ? new Date(task.due_date) : null,
         completed: !!task.completed,
-        assigned_to: task.assigned_to || ''
+        assigned_to: task.assigned_to || '',
+        household_id: task.household_id
       });
-    } else {
+    } else if (household) {
       // Reset form for new task
       setFormData({
         title: '',
         description: '',
         due_date: null,
         completed: false,
-        assigned_to: ''
+        assigned_to: '',
+        household_id: household.id
       });
     }
-  }, [task]);
+  }, [task, household]);
   
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown; checked?: boolean; type?: string }>) => {
     const { name, value, checked, type } = e.target;
+    const fieldName = name as string;
     setFormData({
       ...formData,
-      [name]: type === 'checkbox' ? checked : value
+      [fieldName]: type === 'checkbox' ? checked : value
     });
   };
   
-  const handleDateChange = (date) => {
+  const handleDateChange = (date: Date | null) => {
     setFormData({
       ...formData,
       due_date: date
     });
   };
   
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!household) return;
     
@@ -115,7 +126,7 @@ export default function TaskForm({ open, onClose, task }) {
       onClose(true); // Close with refresh flag
     } catch (err) {
       console.error('Error saving task:', err);
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setLoading(false);
     }
@@ -134,7 +145,7 @@ export default function TaskForm({ open, onClose, task }) {
             label="Task Title"
             name="title"
             value={formData.title}
-            onChange={handleInputChange}
+            onChange={handleInputChange as any}
             autoFocus
             error={!formData.title}
             helperText={!formData.title ? "Title is required" : ""}
@@ -146,7 +157,7 @@ export default function TaskForm({ open, onClose, task }) {
             label="Description"
             name="description"
             value={formData.description}
-            onChange={handleInputChange}
+            onChange={handleInputChange as any}
             multiline
             rows={3}
           />
@@ -169,7 +180,7 @@ export default function TaskForm({ open, onClose, task }) {
               value={formData.assigned_to}
               name="assigned_to"
               label="Assigned To"
-              onChange={handleInputChange}
+              onChange={handleInputChange as any}
             >
               <MenuItem value="">
                 <em>Unassigned</em>
@@ -186,7 +197,7 @@ export default function TaskForm({ open, onClose, task }) {
             control={
               <Checkbox
                 checked={formData.completed}
-                onChange={handleInputChange}
+                onChange={handleInputChange as any}
                 name="completed"
               />
             }

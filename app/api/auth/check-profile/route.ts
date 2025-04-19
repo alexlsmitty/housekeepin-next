@@ -34,13 +34,16 @@ export async function GET(request: NextRequest) {
     if (!data) {
       console.log('Creating profile for user:', session.user.email);
       
+      // Create a properly typed user object
+      const newUser = { 
+        id: session.user.id, 
+        email: session.user.email || '', // Ensure email is not undefined
+        onboard_success: false 
+      };
+      
       const { error: insertError } = await supabase
         .from('users')
-        .insert([{ 
-          id: session.user.id, 
-          email: session.user.email,
-          onboard_success: false 
-        }]);
+        .insert(newUser);
       
       if (insertError) {
         console.error('Error creating user profile:', insertError);

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { Household, ExtendedHouseholdMember, Invitation, User, ApiError } from '@/types/database';
 import { 
   Box, 
   Paper, 
@@ -38,7 +39,7 @@ export default function HouseholdSettings() {
   });
   const [isFormEditable, setIsFormEditable] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
-  const [formError, setFormError] = useState(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState('');
   const router = useRouter();
   
@@ -47,25 +48,25 @@ export default function HouseholdSettings() {
   
   // Location management state
   const [loadingLocation, setLoadingLocation] = useState(false);
-  const [locationError, setLocationError] = useState(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
   
   // Current user state
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   // Member management state
   const [currentUserRole, setCurrentUserRole] = useState('member');
-  const [pendingInvitations, setPendingInvitations] = useState([]);
+  const [pendingInvitations, setPendingInvitations] = useState<Invitation[]>([]);
   const [loadingInvitations, setLoadingInvitations] = useState(false);
   
   // Invitation dialog state
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteError, setInviteError] = useState(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
   
   // Role management dialog state
   const [showRoleDialog, setShowRoleDialog] = useState(false);
-  const [selectedMember, setSelectedMember] = useState(null);
+  const [selectedMember, setSelectedMember] = useState<ExtendedHouseholdMember | null>(null);
   const [newRole, setNewRole] = useState('');
 
   // Enhanced location update logic
@@ -120,7 +121,9 @@ export default function HouseholdSettings() {
   useEffect(() => {
     const fetchCurrentUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      setCurrentUser(user);
+      if (user) {
+        setCurrentUser(user as User | null);
+      }
     };
     
     fetchCurrentUser();
@@ -178,7 +181,7 @@ export default function HouseholdSettings() {
     fetchUserRoleAndInvitations();
   }, [household, members, currentUser]);
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData({
       ...formData,
@@ -189,7 +192,7 @@ export default function HouseholdSettings() {
   // Function to get the current location from browser
   const getCurrentLocation = () => {
     setLoadingLocation(true);
-    setLocationError(null);
+    setLocationError(null as null);
     
     if (!navigator.geolocation) {
       setLocationError('Geolocation is not supported by your browser');
@@ -256,18 +259,18 @@ export default function HouseholdSettings() {
     }
   };
 
-  const handleTabChange = (event, newValue) => {
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
     // Reset the form editable state when changing tabs
     setIsFormEditable(false);
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!household) return;
     
     setFormLoading(true);
-    setFormError(null);
+    setFormError(null as null);
     
     try {
       // Check which tab we're on to determine what fields to update
@@ -306,19 +309,23 @@ export default function HouseholdSettings() {
       setIsFormEditable(false);
     } catch (err) {
       console.error('Error updating household:', err);
-      setFormError(err.message);
+      if (err instanceof Error) {
+        setFormError(err.message);
+      } else {
+        setFormError('An unknown error occurred');
+      }
     } finally {
       setFormLoading(false);
     }
   };
 
   // Handle invitation submission
-  const handleInviteSubmit = async (e) => {
+  const handleInviteSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!household || !currentUser) return;
     
     setInviteLoading(true);
-    setInviteError(null);
+    setInviteError(null as null);
     
     try {
       // Validate email format
@@ -386,14 +393,18 @@ export default function HouseholdSettings() {
       
     } catch (err) {
       console.error('Error sending invitation:', err);
-      setInviteError(err.message);
+      if (err instanceof Error) {
+        setInviteError(err.message);
+      } else {
+        setInviteError('An error occurred while sending invitation');
+      }
     } finally {
       setInviteLoading(false);
     }
   };
 
   // Handle canceling an invitation
-  const handleCancelInvitation = async (invitationId) => {
+  const handleCancelInvitation = async (invitationId: any) => {
     if (!household) return;
     
     try {
@@ -412,12 +423,16 @@ export default function HouseholdSettings() {
       
     } catch (err) {
       console.error('Error canceling invitation:', err);
-      setFormError(err.message);
+      if (err instanceof Error) {
+        setFormError(err.message);
+      } else {
+        setFormError('An unknown error occurred');
+      }
     }
   };
 
   // Handle removing a member
-  const handleRemoveMember = async (member) => {
+  const handleRemoveMember = async (member: any) => {
     if (!household || !currentUser) return;
     
     try {
@@ -452,14 +467,18 @@ export default function HouseholdSettings() {
       
     } catch (err) {
       console.error('Error removing member:', err);
-      setFormError(err.message);
+      if (err instanceof Error) {
+        setFormError(err.message);
+      } else {
+        setFormError('An unknown error occurred');
+      }
     }
   };
 
   // Open role dialog for a member
-  const openRoleDialog = (member) => {
+  const openRoleDialog = (member: any) => {
     setSelectedMember(member);
-    setNewRole(member.role);
+    setNewRole(member.role || 'member');
     setShowRoleDialog(true);
   };
 
@@ -497,7 +516,7 @@ export default function HouseholdSettings() {
       
     } catch (err) {
       console.error('Error updating role:', err);
-      setFormError(err.message);
+      setFormError((err as Error).message);
     }
   };
 
@@ -523,9 +542,16 @@ export default function HouseholdSettings() {
   }
 
   if (householdError || !household) {
+    // Convert any error type to string to avoid ReactNode type issues
+    const errorMessage = typeof householdError === 'string' 
+      ? householdError 
+      : householdError instanceof Object && 'message' in householdError 
+        ? householdError.message 
+        : 'Failed to load household data';
+        
     return (
       <Alert severity="error" sx={{ m: 2 }}>
-        {householdError || 'Failed to load household data'}
+        {errorMessage}
       </Alert>
     );
   }
@@ -579,7 +605,7 @@ export default function HouseholdSettings() {
               isAdmin={isAdmin}
               isFormEditable={isFormEditable}
               formLoading={formLoading}
-              formError={formError}
+              formError={typeof formError === 'string' ? formError : null}
               setIsFormEditable={setIsFormEditable}
               handleInputChange={handleInputChange}
               handleSubmit={handleSubmit}
@@ -594,7 +620,8 @@ export default function HouseholdSettings() {
               isAdmin={isAdmin}
               isFormEditable={isFormEditable}
               formLoading={formLoading}
-              formError={formError || locationError}
+              formError={typeof formError === 'string' ? formError : locationError}
+              locationError={locationError}
               loadingLocation={loadingLocation}
               setIsFormEditable={setIsFormEditable}
               handleInputChange={handleInputChange}

@@ -15,9 +15,9 @@ export default function AuthCallbackPage() {
     const code = searchParams.get('code');
     
     if (code) {
-      // The route handler will process the code and redirect
-      console.log('Code parameter detected, waiting for processing...');
-      // Wait for the route handler to process
+      // Redirect to our API route handler which will process the code
+      console.log('Code parameter detected, redirecting to API handler...');
+      window.location.href = `/api/auth/callback?code=${code}`;
       return;
     }
     

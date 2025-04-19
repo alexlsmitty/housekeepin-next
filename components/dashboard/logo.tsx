@@ -11,7 +11,15 @@ interface LogoProps {
   className?: string;
   showText?: boolean;
   link?: string;
-  sx?: any; // Allow for sx prop to be passed
+  sx?: Record<string, any>; // Allow for sx prop to be passed
+}
+
+interface TextStarElementProps {
+  delay?: number;
+  top?: number;
+  left?: number;
+  size?: number;
+  className?: string;
 }
 
 // Animation keyframes - more subtle movements
@@ -89,7 +97,7 @@ const Star3Style = styled(StarBase)({
 });
 
 // Star elements that will appear on hover around the text
-const TextStarElement = styled('span')(({ delay = 0, top = 0, left = 0, size = 16 }) => ({
+const TextStarElement = styled('span')<TextStarElementProps>(({ delay = 0, top = 0, left = 0, size = 16 }) => ({
   position: 'absolute',
   top: `${top}px`,
   left: `${left}px`,
@@ -104,7 +112,7 @@ const TextStarElement = styled('span')(({ delay = 0, top = 0, left = 0, size = 1
 }));
 
 // Text star SVG component
-const TextStar = ({ delay, top, left, size }) => (
+const TextStar = ({ delay, top, left, size }: TextStarElementProps) => (
   <TextStarElement 
     className="text-star" 
     delay={delay} 
@@ -135,7 +143,11 @@ const BrandTextContainer = styled('span')(({ theme }) => ({
   }
 }));
 
-const Logo: React.FC<LogoProps> = ({ 
+interface LogoComponent extends React.FC<LogoProps> {
+  Mini: React.FC<MiniLogoProps>;
+}
+
+const Logo: LogoComponent = ({ 
   width = 302, 
   height = 90, 
   className = '',
@@ -216,8 +228,12 @@ const Logo: React.FC<LogoProps> = ({
   ) : content;
 };
 
+interface MiniLogoProps {
+  size?: number;
+}
+
 // Add a specialized mini version for mobile header
-Logo.Mini = ({ size = 32 }) => {
+Logo.Mini = ({ size = 32 }: MiniLogoProps) => {
   return (
     <LogoContainer style={{ width: size, height: size, padding: '2px', margin: '0 10px' }}>
       <svg 
@@ -242,4 +258,4 @@ Logo.Mini = ({ size = 32 }) => {
   );
 };
 
-export default Logo;
+export default Logo as LogoComponent;

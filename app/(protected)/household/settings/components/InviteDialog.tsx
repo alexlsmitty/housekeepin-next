@@ -84,7 +84,7 @@ const InviteDialog: React.FC<InviteDialogProps> = ({
           </Box>
           
           <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
-            The invited user will need to create an account with this email address if they don't already have one.
+            The invited user will need to create an account with this email address if they don&apos;t already have one.
           </Typography>
         </DialogContent>
         

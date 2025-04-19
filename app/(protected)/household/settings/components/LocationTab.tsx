@@ -1,4 +1,5 @@
 import React from 'react';
+import { Household, ApiError } from '@/types/database';
 import { 
   Box, 
   Typography, 
@@ -17,7 +18,7 @@ import {
 } from '@mui/icons-material';
 
 interface LocationTabProps {
-  household: any;
+  household: Household;
   formData: {
     name: string;
     address: string;
@@ -25,6 +26,7 @@ interface LocationTabProps {
     latitude: string;
     longitude: string;
   };
+  formError?: string | ApiError | null;
   isAdmin: boolean;
   isFormEditable: boolean;
   formLoading: boolean;
@@ -32,7 +34,7 @@ interface LocationTabProps {
   locationError: string | null;
   setIsFormEditable: (value: boolean) => void;
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleSubmit: (e: React.FormEvent) => Promise<void>;
+  handleSubmit: (e: React.FormEvent<HTMLFormElement>) => Promise<void>;
   getCurrentLocation: () => void;
   geocodeAddress: () => Promise<void>;
 }
@@ -158,10 +160,11 @@ const LocationTab: React.FC<LocationTabProps> = ({
                 <iframe 
                   width="100%" 
                   height="100%" 
-                  frameBorder="0" 
-                  scrolling="no" 
-                  marginHeight="0" 
-                  marginWidth="0" 
+                  frameBorder={0}
+                  scrolling="no"
+                  title="Location map"
+                  marginHeight={0} 
+                  marginWidth={0} 
                   src={`https://www.openstreetmap.org/export/embed.html?bbox=${parseFloat(formData.longitude)-0.01}%2C${parseFloat(formData.latitude)-0.01}%2C${parseFloat(formData.longitude)+0.01}%2C${parseFloat(formData.latitude)+0.01}&amp;layer=mapnik&amp;marker=${formData.latitude}%2C${formData.longitude}`}
                 ></iframe>
               </Box>
@@ -237,11 +240,12 @@ const LocationTab: React.FC<LocationTabProps> = ({
                 <iframe 
                   width="100%" 
                   height="100%" 
-                  frameBorder="0" 
-                  scrolling="no" 
-                  marginHeight="0" 
-                  marginWidth="0" 
-                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${household.longitude-0.01}%2C${household.latitude-0.01}%2C${household.longitude+0.01}%2C${household.latitude+0.01}&amp;layer=mapnik&amp;marker=${household.latitude}%2C${household.longitude}`}
+                  frameBorder={0}
+                  scrolling="no"
+                  title="Household location map"
+                  marginHeight={0} 
+                  marginWidth={0} 
+                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${(household.longitude || 0)-0.01}%2C${(household.latitude || 0)-0.01}%2C${(household.longitude || 0)+0.01}%2C${(household.latitude || 0)+0.01}&amp;layer=mapnik&amp;marker=${household.latitude}%2C${household.longitude}`}
                 ></iframe>
                 <Box sx={{ mt: 1 }}>
                   <a href={`https://www.openstreetmap.org/?mlat=${household.latitude}&mlon=${household.longitude}#map=15/${household.latitude}/${household.longitude}`} target="_blank" rel="noreferrer">
@@ -252,7 +256,7 @@ const LocationTab: React.FC<LocationTabProps> = ({
             </Paper>
           ) : (
             <Alert severity="info" sx={{ mt: 3 }}>
-              No location coordinates saved for this household. Use the "Update Location" button above to add location information.
+              No location coordinates saved for this household. Use the &quot;Update Location&quot; button above to add location information.
             </Alert>
           )}
         </Box>

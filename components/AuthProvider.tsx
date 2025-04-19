@@ -2,22 +2,14 @@
 
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { User, Session } from '@supabase/supabase-js';
+import { AuthContextType } from '@/lib/types/auth';
+import { WithChildrenProps } from '@/lib/types';
 
-interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  loading: boolean;
-  error: Error | null;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
-  signOut: () => Promise<void>;
-}
+
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: WithChildrenProps) {
   const auth = useAuth();
 
   return (

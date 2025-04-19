@@ -1,3 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 :root {
   --mint: #a0e7e5;
   --pink: #ffb6c1;

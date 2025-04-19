@@ -10,7 +10,13 @@ import {
 } from '@mui/material';
 
 interface BasicInfoTabProps {
-  household: any;
+  household: { 
+    id: string;
+    name: string;
+    description: string | null;
+    address: string | null;
+    member_count: number | null;
+  };
   formData: {
     name: string;
     address: string;
@@ -21,10 +27,10 @@ interface BasicInfoTabProps {
   isAdmin: boolean;
   isFormEditable: boolean;
   formLoading: boolean;
-  formError: any;
+  formError: string | null;
   setIsFormEditable: (value: boolean) => void;
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleSubmit: (e: React.FormEvent) => Promise<void>;
+  handleSubmit: (e: React.FormEvent<HTMLFormElement>) => Promise<void>;
 }
 
 const BasicInfoTab: React.FC<BasicInfoTabProps> = ({

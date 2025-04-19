@@ -31,13 +31,16 @@ export default async function Home() {
           // If user not found, they might need to create a profile
           if (error.code === 'PGRST116') {
             console.log('Creating profile for new OAuth user');
+            // Create a properly typed user object
+            const newUser = { 
+              id: session.user.id, 
+              email: session.user.email || '', // Ensure email is not undefined
+              onboard_success: false 
+            };
+            
             await supabase
               .from('users')
-              .insert([{ 
-                id: session.user.id, 
-                email: session.user.email,
-                onboard_success: false
-              }]);
+              .insert(newUser);
             
             redirect('/onboarding');
           } else {

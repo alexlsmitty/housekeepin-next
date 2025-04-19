@@ -17,7 +17,7 @@ import {
   Card,
   CardContent
 } from '@mui/material';
-import { Add as AddIcon, Remove as RemoveIcon, Home as HomeIcon, Person as PersonIcon } from '@mui/icons-material';
+import { Add as AddIcon, Remove as RemoveIcon, Home as HomeIcon, Person as PersonIcon, CheckCircle as CheckCircleIcon } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 
@@ -25,9 +25,9 @@ export default function Onboarding() {
   const router = useRouter();
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [user, setUser] = useState(null);
-  const [createdHouseholdId, setCreatedHouseholdId] = useState(null);
+  const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<any | null>(null);
+  const [createdHouseholdId, setCreatedHouseholdId] = useState<string | null>(null);
   
   // Household form data
   const [householdData, setHouseholdData] = useState({
@@ -77,7 +77,7 @@ export default function Onboarding() {
     checkAuthStatus();
   }, [router]);
   
-  const handleHouseholdInputChange = (e) => {
+  const handleHouseholdInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setHouseholdData(prev => ({
       ...prev,
@@ -85,7 +85,7 @@ export default function Onboarding() {
     }));
   };
   
-  const handleInvitationChange = (index, value) => {
+  const handleInvitationChange = (index: number, value: string) => {
     const newInvitations = [...invitations];
     newInvitations[index].email = value;
     setInvitations(newInvitations);
@@ -95,7 +95,7 @@ export default function Onboarding() {
     setInvitations([...invitations, { email: '' }]);
   };
   
-  const removeInvitationField = (index) => {
+  const removeInvitationField = (index: number) => {
     if (invitations.length > 1) {
       const newInvitations = [...invitations];
       newInvitations.splice(index, 1);
@@ -171,13 +171,18 @@ export default function Onboarding() {
       } else {
         // Initialize invitation fields based on member count
         if (householdData.member_count > 1) {
-          setInvitations(Array(householdData.member_count - 1).fill().map(() => ({ email: '' })));
+          // Create an array of the appropriate length with email objects
+          const newInvitations = [];
+          for (let i = 0; i < householdData.member_count - 1; i++) {
+            newInvitations.push({ email: '' });
+          }
+          setInvitations(newInvitations);
         }
         setActiveStep(1); // Go to invitation step
       }
     } catch (err) {
       console.error('Error creating household:', err);
-      setError(err.message || 'Failed to create household');
+      setError((err instanceof Error) ? err.message : 'Failed to create household');
     } finally {
       setLoading(false);
     }
@@ -194,14 +199,16 @@ export default function Onboarding() {
       if (validInvitations.length > 0) {
         // Create invitations
         const invitePromises = validInvitations.map(async (inv) => {
+          const invitationData = {
+            household_id: createdHouseholdId || '',
+            inviter_id: user?.id || '',
+            invitee_email: inv.email.trim(),
+            status: 'pending'
+          };
+          
           const { error } = await supabase
             .from('invitations')
-            .insert({
-              household_id: createdHouseholdId,
-              inviter_id: user.id,
-              invitee_email: inv.email.trim(),
-              status: 'pending'
-            });
+            .insert(invitationData);
           
           if (error) throw error;
         });
@@ -213,7 +220,7 @@ export default function Onboarding() {
       setActiveStep(2);
     } catch (err) {
       console.error('Error sending invitations:', err);
-      setError(err.message || 'Failed to send invitations');
+      setError((err instanceof Error) ? err.message : 'Failed to send invitations');
     } finally {
       setLoading(false);
     }
@@ -235,7 +242,7 @@ export default function Onboarding() {
       router.push('/dashboard');
     } catch (err) {
       console.error('Error completing onboarding:', err);
-      setError(err.message || 'Failed to complete onboarding');
+      setError((err instanceof Error) ? err.message : 'Failed to complete onboarding');
       setLoading(false);
     }
   };
@@ -248,7 +255,7 @@ export default function Onboarding() {
   };
 
   // Render the appropriate step content
-  const getStepContent = (step) => {
+  const getStepContent = (step: number) => {
     switch (step) {
       case 0:
         return (

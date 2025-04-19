@@ -2,23 +2,15 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
+import { AuthContextType, AuthError } from '../types/auth';
 
-interface UseAuthReturn {
-  user: User | null;
-  session: Session | null;
-  loading: boolean;
-  error: Error | null;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
-  signOut: () => Promise<void>;
-}
 
-export function useAuth(): UseAuthReturn {
+
+export function useAuth(): AuthContextType {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [error, setError] = useState<AuthError | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -35,7 +27,7 @@ export function useAuth(): UseAuthReturn {
         setUser(userData.user);
         setSession(sessionData.session);
       } catch (e) {
-        setError(e instanceof Error ? e : new Error('An unknown error occurred'));
+        setError(e instanceof Error ? e as AuthError : { name: 'AuthError', message: 'An unknown error occurred' });
         console.error('Error getting session:', e);
       } finally {
         setLoading(false);
@@ -70,7 +62,7 @@ export function useAuth(): UseAuthReturn {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
     } catch (e) {
-      setError(e instanceof Error ? e : new Error('An unknown error occurred'));
+      setError(e instanceof Error ? e as AuthError : { name: 'AuthError', message: 'An unknown error occurred' });
       throw e;
     }
   };
@@ -80,7 +72,7 @@ export function useAuth(): UseAuthReturn {
       const { error } = await supabase.auth.signUp({ email, password });
       if (error) throw error;
     } catch (e) {
-      setError(e instanceof Error ? e : new Error('An unknown error occurred'));
+      setError(e instanceof Error ? e as AuthError : { name: 'AuthError', message: 'An unknown error occurred' });
       throw e;
     }
   };
@@ -98,7 +90,7 @@ export function useAuth(): UseAuthReturn {
       if (error) throw error;
     } catch (e) {
       console.error('Google sign-in error:', e);
-      setError(e instanceof Error ? e : new Error('An unknown error occurred'));
+      setError(e instanceof Error ? e as AuthError : { name: 'AuthError', message: 'An unknown error occurred' });
       throw e;
     }
   };
@@ -112,7 +104,7 @@ export function useAuth(): UseAuthReturn {
       // Force a full page reload to clear all state
       window.location.href = '/login';
     } catch (e) {
-      setError(e instanceof Error ? e : new Error('An unknown error occurred'));
+      setError(e instanceof Error ? e as AuthError : { name: 'AuthError', message: 'An unknown error occurred' });
       throw e;
     }
   };

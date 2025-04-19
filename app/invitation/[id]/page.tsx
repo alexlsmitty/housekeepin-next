@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { Invitation, Household, User } from '@/types/database';
 import { 
   Box, 
   Paper, 
@@ -17,14 +18,14 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import { CheckCircle, Error as ErrorIcon, Home as HomeIcon, Person as PersonIcon } from '@mui/icons-material';
 
-export default function InvitationResponse({ params }) {
+export default function InvitationResponse({ params }: { params: { id: string } }) {
   const invitationId = params.id;
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [invitation, setInvitation] = useState(null);
-  const [household, setHousehold] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [error, setError] = useState<string | null>(null);
+  const [invitation, setInvitation] = useState<Invitation | null>(null);
+  const [household, setHousehold] = useState<Household | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [processingAction, setProcessingAction] = useState(false);
   
@@ -36,7 +37,7 @@ export default function InvitationResponse({ params }) {
         setIsAuthenticated(!!user);
         
         if (user) {
-          setCurrentUser(user);
+          setCurrentUser(user as User);
         }
         
         // Get invitation details
@@ -64,7 +65,7 @@ export default function InvitationResponse({ params }) {
         setHousehold(invitationData.households);
       } catch (err) {
         console.error('Error fetching invitation:', err);
-        setError('Failed to load invitation details: ' + err.message);
+        setError('Failed to load invitation details: ' + ((err as Error)?.message || 'Unknown error'));
       } finally {
         setLoading(false);
       }
@@ -86,6 +87,14 @@ export default function InvitationResponse({ params }) {
         return;
       }
       
+      if (!currentUser?.id || !invitation?.id || !household?.id) {
+        return;
+      }
+
+      if (!currentUser?.email || !invitation?.invitee_email) {
+        return;
+      }
+
       // Verify user email matches invitation email
       if (currentUser.email !== invitation.invitee_email) {
         setError(`This invitation was sent to ${invitation.invitee_email}, but you're logged in as ${currentUser.email}`);
@@ -131,9 +140,9 @@ export default function InvitationResponse({ params }) {
       // Redirect to dashboard
       router.push('/dashboard');
     } catch (err) {
-      console.error('Error accepting invitation:', err);
-      setError('Failed to accept invitation: ' + err.message);
-      setProcessingAction(false);
+    console.error('Error accepting invitation:', err);
+    setError('Failed to accept invitation: ' + ((err as Error)?.message || 'Unknown error'));
+    setProcessingAction(false);
     }
   };
   
@@ -152,9 +161,9 @@ export default function InvitationResponse({ params }) {
       // Redirect to home or login page
       router.push(isAuthenticated ? '/dashboard' : '/');
     } catch (err) {
-      console.error('Error declining invitation:', err);
-      setError('Failed to decline invitation: ' + err.message);
-      setProcessingAction(false);
+    console.error('Error declining invitation:', err);
+    setError('Failed to decline invitation: ' + ((err as Error)?.message || 'Unknown error'));
+    setProcessingAction(false);
     }
   };
 

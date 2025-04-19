@@ -15,13 +15,25 @@ import TaskList from '@/components/tasks/TaskList';
 import TaskForm from '@/components/tasks/TaskForm';
 import { useHousehold } from '@/lib/hooks/useHousehold';
 
+// Error type for householdError
+interface HouseholdError {
+  message: string;
+  [key: string]: any;
+}
+
 export default function TasksPage() {
-  const { household, loading, error: householdError } = useHousehold();
+  const { household, loading, error: householdError } = useHousehold() as {
+    household: any;
+    loading: boolean;
+    error: HouseholdError | null;
+    refreshHousehold: () => Promise<void>;
+    members: any[];
+  };
   const [formOpen, setFormOpen] = useState(false);
-  const [currentTask, setCurrentTask] = useState(null);
+  const [currentTask, setCurrentTask] = useState<any>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   
-  const handleCloseForm = (shouldRefresh) => {
+  const handleCloseForm = (shouldRefresh: boolean = false) => {
     setFormOpen(false);
     setCurrentTask(null);
     
@@ -36,7 +48,7 @@ export default function TasksPage() {
     setFormOpen(true);
   };
   
-  const handleEditTask = (task) => {
+  const handleEditTask = (task: any) => {
     setCurrentTask(task);
     setFormOpen(true);
   };

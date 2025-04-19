@@ -5,10 +5,10 @@ import { Box, Dialog, DialogTitle, DialogContent, DialogActions, Button, MenuIte
 import { supabase } from '@/lib/supabase/client';
 import { Person as PersonIcon } from '@mui/icons-material';
 
-interface Task {
-  id: string;
-  title: string;
-  assigned_to_id?: string;
+import { Task as DBTask } from '@/types/database';
+
+interface Task extends Pick<DBTask, 'id' | 'title'> {
+  assigned_to?: string | null;
 }
 
 interface User {
@@ -27,7 +27,7 @@ interface AssignTaskDialogProps {
 
 function AssignTaskDialog({ open, onClose, task, householdId, onTaskUpdated }: AssignTaskDialogProps) {
   const [members, setMembers] = useState<User[]>([]);
-  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(task.assigned_to_id || null);
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(task.assigned_to || null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,7 +71,7 @@ function AssignTaskDialog({ open, onClose, task, householdId, onTaskUpdated }: A
     try {
       const { error } = await supabase
         .from('tasks')
-        .update({ assigned_to_id: selectedMemberId })
+        .update({ assigned_to: selectedMemberId })
         .eq('id', task.id);
       
       if (error) throw error;
@@ -92,7 +92,7 @@ function AssignTaskDialog({ open, onClose, task, householdId, onTaskUpdated }: A
     try {
       const { error } = await supabase
         .from('tasks')
-        .update({ assigned_to_id: null })
+        .update({ assigned_to: null })
         .eq('id', task.id);
       
       if (error) throw error;
@@ -159,7 +159,7 @@ function AssignTaskDialog({ open, onClose, task, householdId, onTaskUpdated }: A
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        {task.assigned_to_id && (
+        {task.assigned_to && (
           <Button onClick={handleRemoveAssignment} color="error">
             Remove Assignment
           </Button>
@@ -168,7 +168,7 @@ function AssignTaskDialog({ open, onClose, task, householdId, onTaskUpdated }: A
           onClick={handleAssign} 
           variant="contained" 
           color="primary"
-          disabled={!selectedMemberId || selectedMemberId === task.assigned_to_id}
+          disabled={!selectedMemberId || selectedMemberId === task.assigned_to}
         >
           Assign
         </Button>

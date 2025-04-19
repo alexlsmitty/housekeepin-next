@@ -23,14 +23,21 @@ import {
 import { Delete as DeleteIcon, Edit as EditIcon, Search as SearchIcon } from '@mui/icons-material';
 import { supabase } from '@/lib/supabase/client';
 import { useHousehold } from '@/lib/hooks/useHousehold';
+import { Task, ApiError } from '@/types/database';
 
-export default function TaskList({ onEditTask }) {
-  const { household } = useHousehold();
-  const [tasks, setTasks] = useState([]);
+interface TaskListProps {
+  onEditTask?: (task: Task) => void;
+  householdId?: string;
+}
+
+export default function TaskList({ onEditTask, householdId }: TaskListProps) {
+  const { household: contextHousehold } = useHousehold();
+  const household = householdId ? { id: householdId } : contextHousehold;
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [filter, setFilter] = useState('all'); // all, completed, pending
-  const [sortBy, setSortBy] = useState('dueDate'); // dueDate, title
+  const [error, setError] = useState<ApiError | null>(null);
+  const [filter, setFilter] = useState<'all' | 'completed' | 'pending'>('all');
+  const [sortBy, setSortBy] = useState<'dueDate' | 'title'>('dueDate');
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -43,13 +50,13 @@ export default function TaskList({ onEditTask }) {
         let query = supabase
           .from('tasks')
           .select('*')
-          .eq('household_id', household.id);
+          .eq('household_id', household.id as string);
         
         // Apply filters
         if (filter === 'completed') {
-          query = query.eq('completed', true);
+          query = query.eq('completed', true as boolean);
         } else if (filter === 'pending') {
-          query = query.eq('completed', false);
+          query = query.eq('completed', false as boolean);
         }
         
         // Apply search
@@ -59,7 +66,7 @@ export default function TaskList({ onEditTask }) {
         
         // Apply sorting
         if (sortBy === 'dueDate') {
-          query = query.order('due_date', { ascending: true, nullsLast: true });
+          query = query.order('due_date', { ascending: true });
         } else if (sortBy === 'title') {
           query = query.order('title', { ascending: true });
         }
@@ -68,10 +75,11 @@ export default function TaskList({ onEditTask }) {
         
         if (error) throw error;
         
-        setTasks(data || []);
+        // Type assertion to ensure data is properly typed
+        setTasks(data as Task[] || []);
       } catch (err) {
         console.error('Error fetching tasks:', err);
-        setError(err);
+        setError(err as ApiError);
       } finally {
         setLoading(false);
       }
@@ -80,7 +88,7 @@ export default function TaskList({ onEditTask }) {
     fetchTasks();
   }, [household, filter, sortBy, searchQuery]);
 
-  const handleToggleComplete = async (taskId, currentState) => {
+  const handleToggleComplete = async (taskId: string, currentState: boolean | null) => {
     try {
       const { error } = await supabase
         .from('tasks')
@@ -95,11 +103,11 @@ export default function TaskList({ onEditTask }) {
       ));
     } catch (err) {
       console.error('Error toggling task completion:', err);
-      setError(err);
+      setError(err as ApiError);
     }
   };
 
-  const handleDeleteTask = async (taskId) => {
+  const handleDeleteTask = async (taskId: string) => {
     if (!confirm('Are you sure you want to delete this task?')) return;
     
     try {
@@ -114,7 +122,7 @@ export default function TaskList({ onEditTask }) {
       setTasks(tasks.filter(task => task.id !== taskId));
     } catch (err) {
       console.error('Error deleting task:', err);
-      setError(err);
+      setError(err as ApiError);
     }
   };
 
@@ -155,7 +163,7 @@ export default function TaskList({ onEditTask }) {
           <Select
             value={filter}
             label="Filter"
-            onChange={(e) => setFilter(e.target.value)}
+            onChange={(e) => setFilter(e.target.value as 'all' | 'completed' | 'pending')}
           >
             <MenuItem value="all">All Tasks</MenuItem>
             <MenuItem value="completed">Completed</MenuItem>
@@ -168,7 +176,7 @@ export default function TaskList({ onEditTask }) {
           <Select
             value={sortBy}
             label="Sort By"
-            onChange={(e) => setSortBy(e.target.value)}
+            onChange={(e) => setSortBy(e.target.value as 'dueDate' | 'title')}
           >
             <MenuItem value="dueDate">Due Date</MenuItem>
             <MenuItem value="title">Title</MenuItem>
@@ -190,9 +198,11 @@ export default function TaskList({ onEditTask }) {
                 key={task.id}
                 secondaryAction={
                   <Box>
-                    <IconButton edge="end" onClick={() => onEditTask(task)}>
-                      <EditIcon />
-                    </IconButton>
+                    {onEditTask && (
+                      <IconButton edge="end" onClick={() => onEditTask(task)}>
+                        <EditIcon />
+                      </IconButton>
+                    )}
                     <IconButton edge="end" onClick={() => handleDeleteTask(task.id)}>
                       <DeleteIcon />
                     </IconButton>

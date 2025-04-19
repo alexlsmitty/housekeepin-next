@@ -20,7 +20,8 @@ import {
   FormControlLabel,
   Divider,
   IconButton,
-  Tooltip
+  Tooltip,
+  SelectChangeEvent
 } from '@mui/material';
 import {
   Person as PersonIcon,
@@ -37,9 +38,9 @@ import { supabase } from '@/lib/supabase/client';
 import { useAuthContext } from '@/components/AuthProvider';
 
 export default function UserSettings() {
-  const { user: authUser, profile: authProfile } = useAuthContext();
+  const { user: authUser } = useAuthContext();
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState('');
   const router = useRouter();
   
@@ -109,7 +110,11 @@ export default function UserSettings() {
         }
       } catch (err) {
         console.error('Error loading user data:', err);
-        setError(err.message);
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError('An unknown error occurred');
+        }
       } finally {
         setLoading(false);
       }
@@ -118,7 +123,8 @@ export default function UserSettings() {
     loadUserData();
   }, [authUser]);
   
-  const handleInputChange = (e) => {
+  // Handle input changes for text fields
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setProfileData({
       ...profileData,
@@ -126,7 +132,16 @@ export default function UserSettings() {
     });
   };
   
-  const handleNotificationChange = (e) => {
+  // Handle select changes specifically for Material UI Select components
+  const handleSelectChange = (e: SelectChangeEvent<string>) => {
+    const { name, value } = e.target;
+    setProfileData({
+      ...profileData,
+      [name]: value
+    });
+  };
+  
+  const handleNotificationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, checked } = e.target;
     setNotificationPreferences({
       ...notificationPreferences,
@@ -134,7 +149,7 @@ export default function UserSettings() {
     });
   };
   
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
     if (!authUser) {
@@ -169,9 +184,22 @@ export default function UserSettings() {
       setIsEditable(false);
     } catch (err) {
       console.error('Error updating profile:', err);
-      setError(err.message);
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('An unknown error occurred');
+      }
     } finally {
       setUpdateLoading(false);
+    }
+  };
+  
+  // Create a separate handler for the IconButton click
+  const handleSaveClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    // Create a synthetic form submit event by submitting the form programmatically
+    const formElement = document.querySelector('form') as HTMLFormElement;
+    if (formElement) {
+      formElement.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
     }
   };
   
@@ -179,7 +207,7 @@ export default function UserSettings() {
     setSuccessMessage('');
   };
   
-  const getInitials = (name) => {
+  const getInitials = (name: string | undefined) => {
     if (!name) return 'U';
     const nameParts = name.split(' ');
     if (nameParts.length === 1) return nameParts[0].charAt(0).toUpperCase();
@@ -283,7 +311,7 @@ export default function UserSettings() {
               <Tooltip title="Save changes">
                 <IconButton 
                   color="primary"
-                  onClick={handleSubmit}
+                  onClick={handleSaveClick}
                   disabled={updateLoading}
                 >
                   {updateLoading ? <CircularProgress size={24} /> : <SaveIcon />}
@@ -368,7 +396,7 @@ export default function UserSettings() {
                     id="theme_preference"
                     name="theme_preference"
                     value={profileData.theme_preference}
-                    onChange={handleInputChange}
+                    onChange={handleSelectChange}
                     label="Theme Preference"
                   >
                     <MenuItem value="light">Light</MenuItem>

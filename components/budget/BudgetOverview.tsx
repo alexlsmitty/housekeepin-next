@@ -27,7 +27,8 @@ import {
   FormControl,
   InputLabel,
   Select,
-  IconButton
+  IconButton,
+  SelectChangeEvent
 } from '@mui/material';
 import { 
   Add as AddIcon,
@@ -37,15 +38,64 @@ import { format, parseISO } from 'date-fns';
 import { supabase } from '@/lib/supabase/client';
 import { useHousehold } from '@/lib/hooks/useHousehold';
 import CategoryForm from '@/components/budget/CategoryForm';
+import { useAuthContext } from '@/components/AuthProvider';
+import { PostgrestError } from '@supabase/supabase-js';
+import { BudgetCategory, Transaction as TransactionType, Budget as BudgetType, Category } from '@/types/database';
+import { safeCast, toNumber, toString } from '@/lib/utils/typesafe';
 
-export default function BudgetOverview() {
+// Define interfaces for data types (extended from base types if needed)
+interface Transaction extends TransactionType {
+  budget_categories?: {
+    name: string;
+  };
+}
+
+// Use the imported BudgetType directly
+
+interface BudgetStats {
+  totalIncome: number;
+  totalExpenses: number;
+  balance: number;
+}
+
+interface FormErrors {
+  [key: string]: string;
+}
+
+interface BudgetFormData {
+  name: string;
+  start_date: string;
+  end_date: string;
+  total_amount: string;
+}
+
+interface CategoryFormData {
+  name: string;
+  description: string;
+}
+
+interface TransactionFormData {
+  category_id: string;
+  transaction_type: 'expense' | 'income';
+  amount: string;
+  description: string;
+}
+
+interface BudgetOverviewProps {
+  onAddCategory?: () => void;
+  onAddTransaction?: () => void;
+}
+
+export default function BudgetOverview({ onAddCategory, onAddTransaction }: BudgetOverviewProps = {}) {
   const { household } = useHousehold();
-  const [categories, setCategories] = useState([]);
-  const [transactions, setTransactions] = useState([]);
-  const [budgets, setBudgets] = useState([]);
+  const { user } = useAuthContext();
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [budgets, setBudgets] = useState<BudgetType[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [stats, setStats] = useState({
+  const [error, setError] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
+  const [stats, setStats] = useState<BudgetStats>({
     totalIncome: 0,
     totalExpenses: 0,
     balance: 0
@@ -56,22 +106,22 @@ export default function BudgetOverview() {
   const [showBudgetModal, setShowBudgetModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showTransactionModal, setShowTransactionModal] = useState(false);
-  const [currentCategory, setCurrentCategory] = useState(null);
+  const [currentCategory, setCurrentCategory] = useState<Category | null>(null);
   
   // Form states
-  const [newBudget, setNewBudget] = useState({
+  const [newBudget, setNewBudget] = useState<BudgetFormData>({
     name: '',
     start_date: format(new Date(), 'yyyy-MM-dd'),
     end_date: format(new Date(new Date().setMonth(new Date().getMonth() + 1)), 'yyyy-MM-dd'),
     total_amount: ''
   });
   
-  const [newCategory, setNewCategory] = useState({
+  const [newCategory, setNewCategory] = useState<CategoryFormData>({
     name: '',
     description: ''
   });
   
-  const [newTransaction, setNewTransaction] = useState({
+  const [newTransaction, setNewTransaction] = useState<TransactionFormData>({
     category_id: '',
     transaction_type: 'expense',
     amount: '',
@@ -111,23 +161,28 @@ export default function BudgetOverview() {
       
       if (budgetsError) throw budgetsError;
       
-      setCategories(categoriesData || []);
-      setTransactions(transactionsData || []);
-      setBudgets(budgetsData || []);
+      const typedCategories = categoriesData ? categoriesData.map(cat => cat as unknown as Category) : [];
+      const typedTransactions = transactionsData ? transactionsData.map(trans => trans as unknown as Transaction) : [];
+      const typedBudgets = budgetsData ? budgetsData.map(budget => budget as unknown as BudgetType) : [];
+      
+      setCategories(typedCategories);
+      setTransactions(typedTransactions);
+      setBudgets(typedBudgets);
       
       // Calculate statistics
       if (transactionsData) {
         const income = transactionsData
           .filter(t => t.transaction_type === 'income')
-          .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+          .reduce((sum, t) => sum + toNumber(t.amount, 0), 0);
           
         const expenses = transactionsData
           .filter(t => t.transaction_type === 'expense')
-          .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+          .reduce((sum, t) => sum + toNumber(t.amount, 0), 0);
         
         // Calculate total budget amount
-        const totalBudget = budgetsData ? 
-          budgetsData.reduce((sum, b) => sum + parseFloat(b.total_amount || 0), 0) : 0;
+        const totalBudget = typedBudgets.reduce(
+          (sum, b) => sum + toNumber(b.total_amount, 0), 0
+        );
           
         // Balance calculation: (Sum of budgets) + (income - expenses)
         const netIncome = income - expenses;
@@ -141,7 +196,7 @@ export default function BudgetOverview() {
       }
     } catch (err) {
       console.error('Error fetching budget data:', err);
-      setError(err.message || 'An error occurred while loading budget data');
+      setError(err instanceof Error ? err.message : 'An error occurred while loading budget data');
     } finally {
       setLoading(false);
     }
@@ -153,52 +208,88 @@ export default function BudgetOverview() {
   }, [household]);
 
   // Form handlers
-  const handleBudgetChange = (e) => {
+  const handleBudgetChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
     const { name, value } = e.target;
-    setNewBudget(prev => ({
+    if (name) {
+      setNewBudget(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
+  
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
+    const { name, value } = e.target;
+    if (name) {
+      setNewCategory(prev => ({ ...prev, [name]: value }));
+    }
+  };
+  
+  const handleTransactionChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
+    const { name, value } = e.target;
+    if (name) {
+      setNewTransaction(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
+  
+  // Special handlers for Select components
+  const handleTransactionTypeChange = (event: SelectChangeEvent<'income' | 'expense'>) => {
+    setNewTransaction(prev => ({
       ...prev,
-      [name]: value
+      transaction_type: event.target.value as 'income' | 'expense'
     }));
   };
   
-  const handleCategoryChange = (e) => {
-    const { name, value } = e.target;
-    setNewCategory(prev => ({ ...prev, [name]: value }));
-  };
-  
-  const handleTransactionChange = (e) => {
-    const { name, value } = e.target;
+  const handleCategorySelectChange = (event: SelectChangeEvent<string>) => {
     setNewTransaction(prev => ({
       ...prev,
-      [name]: value
+      category_id: event.target.value
     }));
   };
 
   // Submit handlers
-  const handleBudgetSubmit = async (e) => {
+  const handleBudgetSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
+    if (!household) {
+      setError("No household found. Please create or join a household first.");
+      return;
+    }
+    
     try {
+      // Create the budget data object with proper types
+      const budgetData = {
+        household_id: household.id,
+        name: newBudget.name,
+        start_date: newBudget.start_date,
+        end_date: newBudget.end_date,
+        total_amount: parseFloat(newBudget.total_amount) || 0
+      };
+      
       const { error } = await supabase
         .from('budgets')
-        .insert({
-          household_id: household.id,
-          name: newBudget.name,
-          start_date: newBudget.start_date,
-          end_date: newBudget.end_date,
-          total_amount: parseFloat(newBudget.total_amount) || 0
-        });
+        .insert(budgetData);
         
       if (error) throw error;
       
       // Refresh budgets
-      const { data: updatedBudgets } = await supabase
-        .from('budgets')
-        .select('*')
-        .eq('household_id', household.id)
-        .order('created_at', { ascending: false });
+      if (household) {
+        const { data: updatedBudgets, error: refreshError } = await supabase
+          .from('budgets')
+          .select('*')
+          .eq('household_id', household.id)
+          .order('created_at', { ascending: false });
+          
+        if (refreshError) throw refreshError;
         
-      setBudgets(updatedBudgets || []);
+        // Safe type casting
+        if (updatedBudgets) {
+          setBudgets(updatedBudgets.map(budget => budget as unknown as BudgetType));
+        }
+      }
       
       // Reset form and close modal
       setNewBudget({
@@ -211,60 +302,76 @@ export default function BudgetOverview() {
       
     } catch (err) {
       console.error('Error creating budget:', err);
-      alert('Failed to create budget: ' + err.message);
+      const errorMessage = err instanceof PostgrestError ? err.message : 'Failed to create budget';
+      setError(errorMessage);
     }
   };
   
-  const handleTransactionSubmit = async (e) => {
+  const handleTransactionSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
+    if (!household || !user) {
+      setError("No household or user found. Please ensure you're logged in and have a household.");
+      return;
+    }
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      // Create the transaction data with proper types
+      const transactionData = {
+        household_id: household.id,
+        category_id: newTransaction.category_id || null,
+        transaction_type: newTransaction.transaction_type,
+        amount: parseFloat(newTransaction.amount) || 0,
+        description: newTransaction.description,
+        created_by: user.id
+      };
       
       const { error } = await supabase
         .from('transactions')
-        .insert({
-          household_id: household.id,
-          category_id: newTransaction.category_id || null,
-          transaction_type: newTransaction.transaction_type,
-          amount: parseFloat(newTransaction.amount) || 0,
-          description: newTransaction.description,
-          created_by: user.id
-        });
+        .insert(transactionData);
         
       if (error) throw error;
       
       // Refresh transactions
-      const { data: updatedTransactions } = await supabase
-        .from('transactions')
-        .select('*, budget_categories(name)')
-        .eq('household_id', household.id)
-        .order('created_at', { ascending: false });
+      if (household) {
+        const { data: updatedTransactions, error: refreshError } = await supabase
+          .from('transactions')
+          .select('*, budget_categories(name)')
+          .eq('household_id', household.id)
+          .order('created_at', { ascending: false });
+          
+        if (refreshError) throw refreshError;
         
-      setTransactions(updatedTransactions || []);
-      
-      // Update statistics
-      const income = updatedTransactions
-        .filter(t => t.transaction_type === 'income')
-        .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
-        
-      const expenses = updatedTransactions
-        .filter(t => t.transaction_type === 'expense')
-        .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
-      
-      // Calculate total budget amount with the updated formula
-      const totalBudget = budgets ? 
-        budgets.reduce((sum, b) => sum + parseFloat(b.total_amount || 0), 0) : 0;
-      
-      // Balance calculation: (Sum of budgets) + (income - expenses)
-      const netIncome = income - expenses;
-      const balance = totalBudget + netIncome;
-        
-      setStats({
-        totalIncome: income,
-        totalExpenses: expenses,
-        balance: balance
-      });
+        if (updatedTransactions) {
+          // Safe type casting
+          const typedTransactions = updatedTransactions.map(trans => trans as Transaction);
+          setTransactions(typedTransactions);
+          
+          // Update statistics
+          const income = typedTransactions
+            .filter(t => t.transaction_type === 'income')
+            .reduce((sum, t) => sum + toNumber(t.amount, 0), 0);
+            
+          const expenses = typedTransactions
+            .filter(t => t.transaction_type === 'expense')
+            .reduce((sum, t) => sum + toNumber(t.amount, 0), 0);
+          
+          // Calculate total budget amount
+          const totalBudget = budgets.reduce(
+            (sum, b) => sum + toNumber(b.total_amount, 0), 0
+          );
+          
+          // Balance calculation
+          const netIncome = income - expenses;
+          const balance = totalBudget + netIncome;
+            
+          setStats({
+            totalIncome: income,
+            totalExpenses: expenses,
+            balance: balance
+          });
+        }
+      }
       
       // Reset form and close modal
       setNewTransaction({
@@ -277,18 +384,19 @@ export default function BudgetOverview() {
       
     } catch (err) {
       console.error('Error creating transaction:', err);
-      alert('Failed to create transaction: ' + err.message);
+      const errorMessage = err instanceof PostgrestError ? err.message : 'Failed to create transaction';
+      setError(errorMessage);
     }
   };
   
   // Handle editing a category
-  const handleEditCategory = (category) => {
+  const handleEditCategory = (category: Category) => {
     setCurrentCategory(category);
     setShowCategoryModal(true);
   };
   
   // Handle closing the category form
-  const handleCloseCategoryForm = (shouldRefresh) => {
+  const handleCloseCategoryForm = (shouldRefresh: boolean = false) => {
     setShowCategoryModal(false);
     setCurrentCategory(null);
     
@@ -299,7 +407,7 @@ export default function BudgetOverview() {
   };
   
   // Tab change handler
-  const handleTabChange = (event, newValue) => {
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
   };
 
@@ -441,7 +549,7 @@ export default function BudgetOverview() {
                           color: transaction.transaction_type === 'income' ? 'success.main' : 'error.main',
                           fontWeight: 'bold'
                         }}>
-                          ${parseFloat(transaction.amount).toFixed(2)}
+                          ${toNumber(transaction.amount, 0).toFixed(2)}
                         </TableCell>
                         <TableCell>
                           {format(new Date(transaction.created_at), 'MMM d, yyyy')}
@@ -471,7 +579,7 @@ export default function BudgetOverview() {
                         {format(parseISO(budget.start_date), 'MMM d, yyyy')} - {format(parseISO(budget.end_date), 'MMM d, yyyy')}
                       </Typography>
                       <Typography variant="body1">
-                        Budget: <Box component="span" sx={{ fontWeight: 'bold' }}>${parseFloat(budget.total_amount).toFixed(2)}</Box>
+                        Budget: <Box component="span" sx={{ fontWeight: 'bold' }}>${toNumber(budget.total_amount, 0).toFixed(2)}</Box>
                       </Typography>
                     </Paper>
                   </Grid>
@@ -528,7 +636,7 @@ export default function BudgetOverview() {
                           color: transaction.transaction_type === 'income' ? 'success.main' : 'error.main',
                           fontWeight: 'bold'
                         }}>
-                          ${parseFloat(transaction.amount).toFixed(2)}
+                          ${toNumber(transaction.amount, 0).toFixed(2)}
                         </TableCell>
                         <TableCell>
                           {format(new Date(transaction.created_at), 'MMM d, yyyy')}
@@ -563,14 +671,14 @@ export default function BudgetOverview() {
                   const budgetCategoryIds = budgetCategories.map(cat => cat.id);
                   const budgetTransactions = transactions.filter(t => 
                     t.transaction_type === 'expense' && 
-                    budgetCategoryIds.includes(t.category_id)
+                    t.category_id && budgetCategoryIds.includes(t.category_id)
                   );
                   
                   const spentAmount = budgetTransactions.reduce(
-                    (sum, t) => sum + parseFloat(t.amount || 0), 0
+                    (sum, t) => sum + toNumber(t.amount, 0), 0
                   );
                   
-                  const budgetAmount = parseFloat(budget.total_amount || 0);
+                  const budgetAmount = toNumber(budget.total_amount, 0);
                   const remainingAmount = budgetAmount - spentAmount;
                   const usagePercentage = budgetAmount > 0 ? (spentAmount / budgetAmount) * 100 : 0;
                   
@@ -587,7 +695,7 @@ export default function BudgetOverview() {
                           <Box sx={{ textAlign: 'right' }}>
                             <Typography variant="subtitle1">Budget Amount</Typography>
                             <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-                              ${parseFloat(budget.total_amount).toFixed(2)}
+                              ${toNumber(budget.total_amount, 0).toFixed(2)}
                             </Typography>
                           </Box>
                         </Box>
@@ -623,7 +731,7 @@ export default function BudgetOverview() {
                                   t.transaction_type === 'expense' && t.category_id === category.id
                                 );
                                 const categorySpent = categoryTransactions.reduce(
-                                  (sum, t) => sum + parseFloat(t.amount || 0), 0
+                                  (sum, t) => sum + toNumber(t.amount, 0), 0
                                 );
                                 
                                 return (
@@ -679,7 +787,7 @@ export default function BudgetOverview() {
             <Typography variant="h6" gutterBottom>Budget Categories</Typography>
             
             {categories.length === 0 ? (
-              <Typography sx={{ color: 'text.secondary', mt: 2 }}>
+                              <Typography sx={{ color: 'text.secondary', mt: 2 }}>
                 No categories defined. Add a category to organize your transactions.
               </Typography>
             ) : (
@@ -730,7 +838,7 @@ export default function BudgetOverview() {
                               {category.monthly_limit && (
                                 <Box sx={{ mt: 1 }}>
                                   <Typography variant="caption" sx={{ fontWeight: 'medium' }}>
-                                    Monthly Limit: ${parseFloat(category.monthly_limit).toFixed(2)}
+                                    Monthly Limit: ${toNumber(category.monthly_limit, 0).toFixed(2)}
                                   </Typography>
                                 </Box>
                               )}
@@ -770,7 +878,7 @@ export default function BudgetOverview() {
                           {category.monthly_limit && (
                             <Box sx={{ mt: 1 }}>
                               <Typography variant="caption" sx={{ fontWeight: 'medium' }}>
-                                Monthly Limit: ${parseFloat(category.monthly_limit).toFixed(2)}
+                                Monthly Limit: ${toNumber(category.monthly_limit, 0).toFixed(2)}
                               </Typography>
                             </Box>
                           )}
@@ -861,7 +969,7 @@ export default function BudgetOverview() {
               <Select
                 name="transaction_type"
                 value={newTransaction.transaction_type}
-                onChange={handleTransactionChange}
+                onChange={handleTransactionTypeChange}
                 label="Transaction Type"
               >
                 <MenuItem value="expense">Expense</MenuItem>
@@ -888,7 +996,7 @@ export default function BudgetOverview() {
               <Select
                 name="category_id"
                 value={newTransaction.category_id}
-                onChange={handleTransactionChange}
+                onChange={handleCategorySelectChange}
                 label="Category"
               >
                 <MenuItem value="">Uncategorized</MenuItem>

@@ -59,7 +59,12 @@ interface CalendarEvent {
   completed?: boolean;
 }
 
-export default function Calendar({ onSelectEvent, onSelectSlot }) {
+interface CalendarProps {
+  onSelectEvent?: (event: CalendarEvent) => void;
+  onSelectSlot?: (slotInfo: { start: Date }) => void;
+}
+
+export default function Calendar({ onSelectEvent, onSelectSlot }: CalendarProps) {
   const { household } = useHousehold();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -179,33 +184,61 @@ export default function Calendar({ onSelectEvent, onSelectSlot }) {
   };
 
   const handleDeleteEvent = async () => {
-    if (!selectedEvent || selectedEvent.type === 'task') return;
-    
+    // Check if an event is selected and if it's not a task
+    if (!selectedEvent || selectedEvent.type === 'task') {
+      console.warn("Deletion skipped: No event selected or selected item is a task.");
+      return;
+    }
+  
+    // Ensure the ID is definitely a string before using it
+    const eventIdAsString = String(selectedEvent.id); // Using String() is safer than .toString() if id could be null/undefined briefly
+  
+    setSubmitting(true); // Set loading state
+  
     try {
-      setSubmitting(true);
-      
+      console.log(`Attempting to delete event with ID: ${eventIdAsString}`);
+  
       const { error } = await supabase
         .from('events')
         .delete()
-        .eq('id', selectedEvent.id);
-        
-      if (error) throw error;
-      
-      // Remove from local state
+        .eq('id', eventIdAsString); // Use the stringified ID
+  
+      if (error) {
+        // Rethrow the Supabase error to be caught by the catch block
+        throw error;
+      }
+  
+      // --- Post-deletion success logic ---
+      console.log(`Successfully deleted event with ID: ${eventIdAsString}`);
+      // Optionally show a success message
+      // showSnackbar('Event deleted successfully!', 'success');
+  
+      // Remove the deleted event from the local state
       setEvents(prev => prev.filter(event => event.id !== selectedEvent.id));
-      
-      // Close modals
+  
+      // Close modals and reset state
       setDeleteConfirmOpen(false);
       setShowEventDetailsModal(false);
       setSelectedEvent(null);
-      
+  
     } catch (err) {
+      // --- Safely handle the error object ---
       console.error('Error deleting event:', err);
-      alert('Failed to delete event: ' + err.message);
+      let errorMessage = 'An unknown error occurred.';
+      if (err instanceof Error) {
+        errorMessage = err.message; // Safely access message if it's an Error object
+      } else if (typeof err === 'string') {
+        errorMessage = err; // Handle if the error thrown was just a string
+      }
+      // Show error message to the user
+      alert('Failed to delete event: ' + errorMessage);
+      // ---------------------------------------
+  
     } finally {
+      // Ensure loading state is turned off
       setSubmitting(false);
     }
-  };
+   };
 
   const handleEventSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -264,7 +297,7 @@ export default function Calendar({ onSelectEvent, onSelectSlot }) {
       
       // Replace temp event with real one
       setEvents(prev => 
-        prev.map(event => event.id === tempId ? { ...data, type: 'event' } : event)
+      prev.map(event => event.id === tempId ? { ...data, id: data.id.toString(), type: 'event' } : event)
       );
       
       // Reset form
@@ -785,7 +818,7 @@ export default function Calendar({ onSelectEvent, onSelectSlot }) {
         <DialogTitle>Delete Event</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete "{selectedEvent?.title.replace('📋 ', '')}"? This action cannot be undone.
+            Are you sure you want to delete &quot;{selectedEvent?.title.replace('📋 ', '')}&quot;? This action cannot be undone.
           </Typography>
         </DialogContent>
         <DialogActions>

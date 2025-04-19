@@ -13,6 +13,7 @@ import {
   FormControl,
   InputLabel,
   Select,
+  SelectChangeEvent,
   MenuItem,
   InputAdornment,
   Grid,
@@ -25,21 +26,35 @@ import { useHousehold } from '@/lib/hooks/useHousehold';
 import { useAuthContext } from '@/components/AuthProvider';
 import { validateForm, validateRequired, validatePositiveNumber, validateDate } from '@/lib/utils/validation';
 
-export default function TransactionForm({ open, onClose, transaction }) {
+interface TransactionFormProps {
+  open: boolean;
+  onClose: (shouldRefresh: boolean) => void;
+  transaction: any | null;
+}
+
+export default function TransactionForm({ open, onClose, transaction }: TransactionFormProps) {
   const { household } = useHousehold();
   const { user } = useAuthContext();
-  const [categories, setCategories] = useState([]);
-  const [formData, setFormData] = useState({
+  const [categories, setCategories] = useState<any[]>([]);
+  interface FormData {
+    amount: string;
+    description: string;
+    date: Date;
+    category_id: string;
+    transaction_type: string;
+  }
+
+  const [formData, setFormData] = useState<FormData>({
     amount: '',
     description: '',
     date: new Date(),
     category_id: '',
     transaction_type: 'expense' // Add transaction_type with default value
   });
-  const [formErrors, setFormErrors] = useState({});
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   
   // Fetch categories with budget information
   useEffect(() => {
@@ -61,7 +76,11 @@ export default function TransactionForm({ open, onClose, transaction }) {
         setCategories(data || []);
       } catch (err) {
         console.error('Error fetching categories:', err);
+        if (err instanceof Error) {
         setError(err.message);
+      } else {
+        setError('An unknown error occurred');
+      }
       } finally {
         setCategoriesLoading(false);
       }
@@ -96,8 +115,23 @@ export default function TransactionForm({ open, onClose, transaction }) {
     setFormErrors({});
     setError(null);
   }, [transaction, open, categories]);
-  
-  const handleInputChange = (e) => {
+  const handleTextFieldChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value
+    });
+    
+    // Clear error for this field
+    if (formErrors[name]) {
+      setFormErrors({
+        ...formErrors,
+        [name]: ''
+      });
+    }
+  };
+
+  const handleSelectChange = (e: SelectChangeEvent) => {
     const { name, value } = e.target;
     setFormData({
       ...formData,
@@ -113,7 +147,9 @@ export default function TransactionForm({ open, onClose, transaction }) {
     }
   };
   
-  const handleDateChange = (date) => {
+  const handleDateChange = (date: Date | null) => {
+    if (!date) return;
+    
     setFormData({
       ...formData,
       date
@@ -140,7 +176,7 @@ export default function TransactionForm({ open, onClose, transaction }) {
     return Object.keys(errors).length === 0;
   };
   
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!household || !user) return;
     
@@ -195,7 +231,6 @@ export default function TransactionForm({ open, onClose, transaction }) {
       setLoading(false);
     }
   };
-  
   return (
     <Dialog open={open} onClose={() => onClose(false)} maxWidth="sm" fullWidth>
       <DialogTitle>{transaction ? 'Edit Transaction' : 'Add New Transaction'}</DialogTitle>
@@ -210,8 +245,7 @@ export default function TransactionForm({ open, onClose, transaction }) {
                   id="transaction_type"
                   name="transaction_type"
                   value={formData.transaction_type}
-                  onChange={handleInputChange}
-                  label="Transaction Type"
+                  onChange={handleSelectChange}
                 >
                   <MenuItem value="expense">Expense</MenuItem>
                   <MenuItem value="income">Income</MenuItem>
@@ -227,7 +261,7 @@ export default function TransactionForm({ open, onClose, transaction }) {
                 name="amount"
                 type="number"
                 value={formData.amount}
-                onChange={handleInputChange}
+                onChange={handleTextFieldChange}
                 InputProps={{
                   startAdornment: <InputAdornment position="start">$</InputAdornment>,
                 }}
@@ -244,7 +278,7 @@ export default function TransactionForm({ open, onClose, transaction }) {
                 label="Description"
                 name="description"
                 value={formData.description}
-                onChange={handleInputChange}
+                onChange={handleTextFieldChange}
               />
             </Grid>
             
@@ -274,7 +308,7 @@ export default function TransactionForm({ open, onClose, transaction }) {
                   id="category_id"
                   name="category_id"
                   value={formData.category_id}
-                  onChange={handleInputChange}
+                  onChange={handleSelectChange}
                   label="Category"
                   disabled={categoriesLoading}
                 >
@@ -326,8 +360,7 @@ export default function TransactionForm({ open, onClose, transaction }) {
       <DialogActions>
         <Button onClick={() => onClose(false)}>Cancel</Button>
         <Button 
-          onClick={handleSubmit} 
-          variant="contained" 
+          onClick={(e) => handleSubmit(e as any)}
           disabled={loading || !formData.amount}
         >
           {loading ? <CircularProgress size={24} /> : transaction ? 'Update Transaction' : 'Add Transaction'}

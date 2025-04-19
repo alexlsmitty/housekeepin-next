@@ -7,5 +7,6 @@ export const supabase = createClientComponentClient<Database>({
     path: '/',
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
+    domain: ''
   }
 });

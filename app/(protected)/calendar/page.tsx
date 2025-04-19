@@ -19,11 +19,23 @@ import HouseholdCalendar from '@/components/calendar/Calendar';
 import EventForm from '@/components/calendar/EventForm';
 import { useHousehold } from '@/lib/hooks/useHousehold';
 
+// Error type for householdError
+interface HouseholdError {
+  message: string;
+  [key: string]: any;
+}
+
 export default function CalendarPage() {
-  const { household, loading, error: householdError } = useHousehold();
+  const { household, loading, error: householdError } = useHousehold() as {
+    household: any;
+    loading: boolean;
+    error: HouseholdError | null;
+    refreshHousehold: () => Promise<void>;
+    members: any[];
+  };
   const [formOpen, setFormOpen] = useState(false);
-  const [currentEvent, setCurrentEvent] = useState(null);
-  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [currentEvent, setCurrentEvent] = useState<any>(null);
+  const [selectedSlot, setSelectedSlot] = useState<any>(null);
   const [viewEventOpen, setViewEventOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   
@@ -33,7 +45,7 @@ export default function CalendarPage() {
     setFormOpen(true);
   };
   
-  const handleSelectEvent = (event) => {
+  const handleSelectEvent = (event: any) => {
     console.log('Selected event:', event); // Add logging to debug event structure
     setCurrentEvent(event);
     if (event && event.type === 'task') {
@@ -45,13 +57,13 @@ export default function CalendarPage() {
     }
   };
   
-  const handleSelectSlot = (slotInfo) => {
+  const handleSelectSlot = (slotInfo: any) => {
     setCurrentEvent(null);
     setSelectedSlot(slotInfo);
     setFormOpen(true);
   };
   
-  const handleCloseForm = (shouldRefresh) => {
+  const handleCloseForm = (shouldRefresh: boolean = false) => {
     setFormOpen(false);
     setCurrentEvent(null);
     setSelectedSlot(null);

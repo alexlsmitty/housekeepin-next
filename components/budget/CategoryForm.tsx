@@ -20,15 +20,36 @@ import {
   RadioGroup,
   FormControlLabel,
   Radio,
-  Typography
+  Typography,
+  SelectChangeEvent
 } from '@mui/material';
 import { supabase } from '@/lib/supabase/client';
 import { useHousehold } from '@/lib/hooks/useHousehold';
 import { validateForm, validateRequired, validatePositiveNumber } from '@/lib/utils/validation';
+import { BudgetCategory, Budget } from '@/types/database';
 
-export default function CategoryForm({ open, onClose, category }) {
+interface CategoryFormProps {
+  open: boolean;
+  onClose: (shouldRefresh: boolean) => void;
+  category: BudgetCategory | null;
+}
+
+interface FormState {
+  name: string;
+  description: string;
+  monthly_limit: string;
+  color: string;
+  category_type: string;
+  budget_id: string;
+}
+
+interface FormErrors {
+  [key: string]: string;
+}
+
+export default function CategoryForm({ open, onClose, category }: CategoryFormProps) {
   const { household } = useHousehold();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormState>({
     name: '',
     description: '',
     monthly_limit: '',
@@ -36,10 +57,10 @@ export default function CategoryForm({ open, onClose, category }) {
     category_type: 'general',
     budget_id: ''
   });
-  const [formErrors, setFormErrors] = useState({});
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [budgets, setBudgets] = useState([]);
+  const [error, setError] = useState<string | null>(null);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
   const [budgetsLoading, setBudgetsLoading] = useState(false);
   
   // Fetch budgets when component opens
@@ -61,7 +82,7 @@ export default function CategoryForm({ open, onClose, category }) {
         setBudgets(data || []);
       } catch (err) {
         console.error('Error fetching budgets:', err);
-        setError('Failed to load budgets. ' + err.message);
+        setError('Failed to load budgets. ' + (err instanceof Error ? err.message : 'Unknown error'));
       } finally {
         setBudgetsLoading(false);
       }
@@ -97,7 +118,24 @@ export default function CategoryForm({ open, onClose, category }) {
     setError(null);
   }, [category, open]);
   
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value
+    });
+    
+    // Clear error for this field
+    if (formErrors[name]) {
+      setFormErrors({
+        ...formErrors,
+        [name]: ''
+      });
+    }
+  };
+  
+  // Separate handler for Select components
+  const handleSelectChange = (e: SelectChangeEvent<string>) => {
     const { name, value } = e.target;
     setFormData({
       ...formData,
@@ -114,7 +152,7 @@ export default function CategoryForm({ open, onClose, category }) {
   };
   
   const validateFormData = () => {
-    const rules = {
+    const rules: {[key: string]: (value: string) => boolean} = {
       name: validateRequired
     };
     
@@ -136,7 +174,7 @@ export default function CategoryForm({ open, onClose, category }) {
     return Object.keys(errors).length === 0;
   };
   
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     if (!household) return;
     
@@ -180,7 +218,7 @@ export default function CategoryForm({ open, onClose, category }) {
       onClose(true); // Close with refresh flag
     } catch (err) {
       console.error('Error saving category:', err);
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setLoading(false);
     }
@@ -190,7 +228,7 @@ export default function CategoryForm({ open, onClose, category }) {
     <Dialog open={open} onClose={() => onClose(false)} maxWidth="sm" fullWidth>
       <DialogTitle>{category ? 'Edit Category' : 'Create New Category'}</DialogTitle>
       <DialogContent>
-        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
+        <Box component="form" sx={{ mt: 1 }}>
           <TextField
             margin="normal"
             required
@@ -236,7 +274,7 @@ export default function CategoryForm({ open, onClose, category }) {
                 id="budget_id"
                 name="budget_id"
                 value={formData.budget_id}
-                onChange={handleInputChange}
+                onChange={handleSelectChange}
                 label="Associated Budget"
                 disabled={budgetsLoading}
                 error={!!formErrors.budget_id}
@@ -246,7 +284,7 @@ export default function CategoryForm({ open, onClose, category }) {
                 </MenuItem>
                 {budgets.map((budget) => (
                   <MenuItem key={budget.id} value={budget.id}>
-                    {budget.name} (${parseFloat(budget.total_amount).toFixed(2)})
+                    {`${budget.name} ($${parseFloat(budget.total_amount.toString()).toFixed(2)})`}
                   </MenuItem>
                 ))}
               </Select>

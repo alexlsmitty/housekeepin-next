@@ -16,15 +16,27 @@ import CategoryForm from '@/components/budget/CategoryForm';
 import TransactionForm from '@/components/budget/TransactionForm';
 import { useHousehold } from '@/lib/hooks/useHousehold';
 
+// Error type for householdError
+interface HouseholdError {
+  message: string;
+  [key: string]: any;
+}
+
 export default function BudgetPage() {
-  const { household, loading, error: householdError } = useHousehold();
+  const { household, loading, error: householdError } = useHousehold() as {
+    household: any;
+    loading: boolean;
+    error: HouseholdError | null;
+    refreshHousehold: () => Promise<void>;
+    members: any[];
+  };
   const [categoryFormOpen, setCategoryFormOpen] = useState(false);
   const [transactionFormOpen, setTransactionFormOpen] = useState(false);
-  const [currentCategory, setCurrentCategory] = useState(null);
-  const [currentTransaction, setCurrentTransaction] = useState(null);
+  const [currentCategory, setCurrentCategory] = useState<any>(null);
+  const [currentTransaction, setCurrentTransaction] = useState<any>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   
-  const handleCloseCategoryForm = (shouldRefresh) => {
+  const handleCloseCategoryForm = (shouldRefresh: boolean = false) => {
     setCategoryFormOpen(false);
     setCurrentCategory(null);
     
@@ -33,7 +45,7 @@ export default function BudgetPage() {
     }
   };
   
-  const handleCloseTransactionForm = (shouldRefresh) => {
+  const handleCloseTransactionForm = (shouldRefresh: boolean = false) => {
     setTransactionFormOpen(false);
     setCurrentTransaction(null);
     
@@ -47,7 +59,7 @@ export default function BudgetPage() {
     setCategoryFormOpen(true);
   };
   
-  const handleEditCategory = (category) => {
+  const handleEditCategory = (category: any) => {
     setCurrentCategory(category);
     setCategoryFormOpen(true);
   };
@@ -57,7 +69,7 @@ export default function BudgetPage() {
     setTransactionFormOpen(true);
   };
   
-  const handleEditTransaction = (transaction) => {
+  const handleEditTransaction = (transaction: any) => {
     setCurrentTransaction(transaction);
     setTransactionFormOpen(true);
   };

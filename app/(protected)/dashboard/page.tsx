@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import { Task, Event } from '@/types/database';
 import { 
   Card, 
   CardContent, 
@@ -15,7 +16,7 @@ import {
   ListItemText
 } from '@mui/material';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import DashboardLocationWeather from './DashboardLocationWeather';
+import DashboardLocationWeather, { Household } from './DashboardLocationWeather';
 import WelcomeSection from './WelcomeSection';
 import { 
   CheckCircle as TaskIcon, 
@@ -32,9 +33,9 @@ export default async function Dashboard() {
   const { data: { user } } = await supabase.auth.getUser();
   
   // Fetch user's household data
-  let household = null;
-  let tasks = [];
-  let events = [];
+  let household: Household | null = null;
+  let tasks: Task[] = [];
+  let events: Event[] = [];
 
   if (user) {
     try {
@@ -42,7 +43,7 @@ export default async function Dashboard() {
       const { data: userData } = await supabase
         .from('users')
         .select('household_id, name')
-        .eq('id', user.id)
+        .eq('id', user.id as string)
         .single();
       
       if (userData?.household_id) {
@@ -53,7 +54,7 @@ export default async function Dashboard() {
           .eq('id', userData.household_id)
           .single();
         
-        household = householdData;
+        household = householdData as Household;
         
         // Fetch upcoming tasks (limit to 5)
         const { data: tasksData } = await supabase
@@ -64,7 +65,7 @@ export default async function Dashboard() {
           .limit(5);
         
         if (tasksData) {
-          tasks = tasksData;
+          tasks = tasksData as Task[];
         }
         
         // Fetch upcoming events (limit to 5)
@@ -77,7 +78,7 @@ export default async function Dashboard() {
           .limit(5);
         
         if (eventsData) {
-          events = eventsData;
+          events = eventsData as Event[];
         }
       }
     } catch (error) {
@@ -135,7 +136,7 @@ export default async function Dashboard() {
                           'No due date'
                         }
                         primaryTypographyProps={{ fontWeight: 'medium' }}
-                        secondaryTypographyProps={{ color: 'text.primary', opacity: 0.7 }}
+                        secondaryTypographyProps={{ color: 'text.primary' }}
                       />
                     </ListItem>
                   ))}
@@ -186,7 +187,7 @@ export default async function Dashboard() {
                         primary={event.title}
                         secondary={new Date(event.start_date).toLocaleDateString()}
                         primaryTypographyProps={{ fontWeight: 'medium' }}
-                        secondaryTypographyProps={{ color: 'text.primary', opacity: 0.7 }}
+                        secondaryTypographyProps={{ color: 'text.primary' }}
                       />
                     </ListItem>
                   ))}

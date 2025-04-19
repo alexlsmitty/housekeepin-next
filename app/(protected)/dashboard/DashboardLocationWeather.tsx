@@ -29,39 +29,64 @@ import {
 } from '@react-google-maps/api';
 
 // Weather condition to message and icon mapping
-const weatherMessages = {
+interface WeatherIconProps {
+  size?: number;
+  color?: string;
+  [key: string]: any;
+}
+
+interface WeatherCondition {
+  message: string;
+  icon: (props: WeatherIconProps) => JSX.Element;
+  color: string;
+}
+
+type WeatherMessages = {
+  [key: string]: WeatherCondition;
+  Clear: WeatherCondition;
+  Clouds: WeatherCondition;
+  Rain: WeatherCondition;
+  Snow: WeatherCondition;
+  Thunderstorm: WeatherCondition;
+  default: WeatherCondition;
+};
+
+const weatherMessages: WeatherMessages = {
   Clear: {
     message: "Perfect day to enjoy some outdoor activities!",
-    icon: (props) => <Sun {...props} />,
+    icon: (props: WeatherIconProps) => <Sun {...props} />,
     color: '#FFC107'
   },
   Clouds: {
     message: "Cloudy skies, perfect for indoor projects or cozy time.",
-    icon: (props) => <Cloud {...props} />,
+    icon: (props: WeatherIconProps) => <Cloud {...props} />,
     color: '#9E9E9E'
   },
   Rain: {
     message: "Rainy day ahead. Time to plan some indoor fun!",
-    icon: (props) => <CloudRain {...props} />,
+    icon: (props: WeatherIconProps) => <CloudRain {...props} />,
     color: '#2196F3'
   },
   Snow: {
     message: "Snowy weather calls for hot cocoa and warm blankets.",
-    icon: (props) => <CloudSnow {...props} />,
+    icon: (props: WeatherIconProps) => <CloudSnow {...props} />,
     color: '#90CAF9'
   },
   Thunderstorm: {
     message: "Stay safe and warm during the thunderstorm.",
-    icon: (props) => <CloudLightning {...props} />,
+    icon: (props: WeatherIconProps) => <CloudLightning {...props} />,
     color: '#9C27B0'
   },
   default: {
     message: "Enjoy your day, whatever the weather!",
-    icon: (props) => <Sun {...props} />,
+    icon: (props: WeatherIconProps) => <Sun {...props} />,
     color: '#757575'
   }
 };
 
+import { Household as DBHousehold } from '../../../types/database';
+
+// Define a component-specific interface for the household
 export interface Household {
   id?: string;
   name?: string;
@@ -84,7 +109,20 @@ const containerStyle = {
 };
 
 export default function DashboardLocationWeather({ household }: DashboardLocationWeatherProps) {
-  const [weatherData, setWeatherData] = useState<any>(null);
+  interface WeatherData {
+    weather: Array<{main: string; description: string}>;
+    main: {
+      temp: number;
+      feels_like: number;
+      humidity: number;
+    };
+    wind: {
+      speed: number;
+    };
+    [key: string]: any;
+  }
+  
+  const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [showInfoWindow, setShowInfoWindow] = useState<boolean>(false);

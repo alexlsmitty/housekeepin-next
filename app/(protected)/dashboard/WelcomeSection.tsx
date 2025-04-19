@@ -46,8 +46,17 @@ const BrandContainer = styled('span')(({ theme }) => ({
   }
 }));
 
+// Define Star element props interface
+interface StarElementProps {
+  delay?: number;
+  top?: number;
+  left?: number;
+  size?: number;
+  className?: string;
+}
+
 // Star elements that will appear on hover
-const StarElement = styled('span')(({ delay = 0, top = 0, left = 0, size = 16 }) => ({
+const StarElement = styled('span')<StarElementProps>(({ delay = 0, top = 0, left = 0, size = 16 }) => ({
   position: 'absolute',
   top: `${top}px`,
   left: `${left}px`,
@@ -62,7 +71,7 @@ const StarElement = styled('span')(({ delay = 0, top = 0, left = 0, size = 16 })
 }));
 
 // Star SVG component
-const Star = ({ delay, top, left, size }) => (
+const Star = ({ delay, top, left, size }: StarElementProps) => (
   <StarElement 
     className="star" 
     delay={delay} 

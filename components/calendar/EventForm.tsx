@@ -20,10 +20,40 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DateTimePicker, DatePicker } from '@mui/x-date-pickers';
 import { supabase } from '@/lib/supabase/client';
 import { useHousehold } from '@/lib/hooks/useHousehold';
+import { Event } from '@/types/database';
 
-export default function EventForm({ open, onClose, event, selectedSlot }) {
+interface EventFormProps {
+  open: boolean;
+  onClose: (refresh?: boolean) => void;
+  event?: {
+    id?: string;
+    title?: string;
+    description?: string;
+    start_date?: string;
+    end_date?: string | null;
+    start?: Date;
+    end?: Date;
+    allDay?: boolean;
+    type?: string;
+  } | null;
+  selectedSlot?: {
+    start: Date;
+    end: Date;
+    slots?: Date[];
+  } | null;
+}
+
+interface FormData {
+  title: string;
+  description: string;
+  start_date: Date | null;
+  end_date: Date | null;
+  isAllDay: boolean;
+}
+
+export default function EventForm({ open, onClose, event, selectedSlot }: EventFormProps) {
   const { household } = useHousehold();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     title: '',
     description: '',
     start_date: null,
@@ -31,7 +61,7 @@ export default function EventForm({ open, onClose, event, selectedSlot }) {
     isAllDay: false
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   
   // Populate form with event data if editing or from selected slot
   useEffect(() => {
@@ -69,7 +99,7 @@ export default function EventForm({ open, onClose, event, selectedSlot }) {
     }
   }, [event, selectedSlot]);
   
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, checked, type } = e.target;
     setFormData({
       ...formData,
@@ -77,21 +107,21 @@ export default function EventForm({ open, onClose, event, selectedSlot }) {
     });
   };
   
-  const handleStartDateChange = (date) => {
+  const handleStartDateChange = (date: Date | null) => {
     setFormData({
       ...formData,
       start_date: date
     });
   };
   
-  const handleEndDateChange = (date) => {
+  const handleEndDateChange = (date: Date | null) => {
     setFormData({
       ...formData,
       end_date: date
     });
   };
   
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!household) return;
     
@@ -113,7 +143,7 @@ export default function EventForm({ open, onClose, event, selectedSlot }) {
         title: formData.title,
         description: formData.description,
         start_date: formData.start_date.toISOString(),
-        end_date: formData.isAllDay ? null : formData.end_date.toISOString(),
+        end_date: formData.isAllDay ? null : (formData.end_date ? formData.end_date.toISOString() : null),
         household_id: household.id
       };
       
@@ -137,7 +167,11 @@ export default function EventForm({ open, onClose, event, selectedSlot }) {
       onClose(true); // Close with refresh flag
     } catch (err) {
       console.error('Error saving event:', err);
-      setError(err.message);
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('An error occurred while saving the event');
+      }
     } finally {
       setLoading(false);
     }
@@ -233,7 +267,7 @@ export default function EventForm({ open, onClose, event, selectedSlot }) {
       <DialogActions>
         <Button onClick={() => onClose(false)}>Cancel</Button>
         <Button 
-          onClick={handleSubmit} 
+          type="submit"
           variant="contained" 
           disabled={loading || !formData.title || !formData.start_date}
         >

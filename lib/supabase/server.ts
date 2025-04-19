@@ -6,12 +6,6 @@ export function createServerSupabaseClient() {
   const cookieStore = cookies();
   
   return createServerComponentClient<Database>({
-    cookies: () => cookieStore,
-    cookieOptions: {
-      name: 'sb-auth-token',
-      path: '/',
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-    }
+    cookies: () => cookieStore
   });
 }

@@ -1,8 +1,9 @@
 'use client';
 
-import React, { ReactNode } from 'react';
+import React from 'react';
 import { ThemeProvider as MuiThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { WithChildrenProps } from '@/lib/types';
 
 // Create theme same as your current app
 const theme = createTheme({
@@ -47,7 +48,7 @@ const theme = createTheme({
   }
 });
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
+export function ThemeProvider({ children }: WithChildrenProps) {
   return (
     <MuiThemeProvider theme={theme}>
       <CssBaseline />
